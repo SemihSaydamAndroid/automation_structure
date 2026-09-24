@@ -22,12 +22,12 @@ public final class RuleBasedFailureAnalyzer implements FailureAnalyzer {
                     "The system under test or a dependency is unreachable.",
                     "Check that the target environment is up and reachable from where the test ran "
                             + "(pod network, VPN, DNS)."),
-            rule("status code (502|503|504)|HTTP/1\\.1 (502|503|504)|responseStatus == (502|503|504)|"
+            rule("status code (was: )?(502|503|504)|HTTP/1\\.1 (502|503|504)|responseStatus == (502|503|504)|"
                             + "Service Unavailable|Bad Gateway|Gateway Timeout",
                     Category.ENVIRONMENT, 0.8,
                     "The service answered with a gateway/availability error.",
                     "Check deployment health and upstream dependencies; retry after the environment recovers."),
-            rule("status code (401|403)|responseStatus == (401|403)|Unauthorized|Forbidden",
+            rule("status code (was: )?(401|403)|responseStatus == (401|403)|Unauthorized|Forbidden",
                     Category.ENVIRONMENT, 0.6,
                     "Authentication or authorization was rejected.",
                     "Verify credentials/secrets for this environment and the token scopes."),

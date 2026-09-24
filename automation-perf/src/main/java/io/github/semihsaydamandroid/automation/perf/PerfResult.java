@@ -1,46 +1,38 @@
 package io.github.semihsaydamandroid.automation.perf;
 
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
+import io.github.semihsaydamandroid.automation.perf.stats.Metrics;
+import io.github.semihsaydamandroid.automation.perf.stats.SlaCheck;
 import us.abstracta.jmeter.javadsl.core.TestPlanStats;
 import us.abstracta.jmeter.javadsl.core.stats.StatsSummary;
 
-/** Statistics of a run plus SLA evaluation. */
+/** Statistics of an embedded or JMX run plus SLA evaluation. */
 public record PerfResult(String name, TestPlanStats stats, Sla sla, Path reportDir) {
 
     public StatsSummary overall() {
         return stats.overall();
     }
 
+    public Metrics metrics() {
+        return Metrics.of("TOTAL", stats.overall(), stats.duration());
+    }
+
+    public List<Metrics> metricsByLabel() {
+        return stats.labels().stream().sorted().map(l -> Metrics.of(l, stats.byLabel(l), stats.duration())).toList();
+    }
+
     public double errorRatePercent() {
-        long samples = overall().samplesCount();
-        return samples == 0 ? 0 : overall().errorsCount() * 100.0 / samples;
+        return metrics().errorRatePercent();
     }
 
     public double throughput() {
-        double seconds = Math.max(stats.duration().toMillis(), 1) / 1000.0;
-        return overall().samplesCount() / seconds;
+        return metrics().throughput();
     }
 
     public List<String> violations() {
-        List<String> violations = new ArrayList<>();
-        StatsSummary overall = overall();
-        if (overall.samplesCount() == 0) {
-            violations.add("no samples were recorded");
-            return violations;
-        }
-        check(violations, "p95", overall.sampleTime().perc95(), sla.p95());
-        check(violations, "p99", overall.sampleTime().perc99(), sla.p99());
-        if (sla.maxErrorRatePercent() != null && errorRatePercent() > sla.maxErrorRatePercent()) {
-            violations.add("error rate %.2f%% > %.2f%%".formatted(errorRatePercent(), sla.maxErrorRatePercent()));
-        }
-        if (sla.minThroughput() != null && throughput() < sla.minThroughput()) {
-            violations.add("throughput %.1f/s < %.1f/s".formatted(throughput(), sla.minThroughput()));
-        }
-        return violations;
+        return SlaCheck.violations(metrics(), sla);
     }
 
     /** Throws an AssertionError listing every violated objective. */
@@ -54,32 +46,8 @@ public record PerfResult(String name, TestPlanStats stats, Sla sla, Path reportD
     }
 
     public String summary() {
-        StatsSummary o = overall();
-        StringBuilder out = new StringBuilder();
-        out.append("%-30s %8s %8s %8s %8s %8s %8s%n".formatted("label", "samples", "errors", "mean", "p90", "p95", "p99"));
-        for (String label : stats.labels()) {
-            out.append(row(label, stats.byLabel(label)));
-        }
-        out.append(row("TOTAL", o));
-        out.append("duration=%ss throughput=%.1f/s error-rate=%.2f%%%n"
-                .formatted(stats.duration().toSeconds(), throughput(), errorRatePercent()));
-        if (reportDir != null) {
-            out.append("report: ").append(reportDir.toAbsolutePath()).append('\n');
-        }
-        return out.toString();
-    }
-
-    private static String row(String label, StatsSummary s) {
-        return "%-30s %8d %8d %8d %8d %8d %8d%n".formatted(
-                label.length() > 30 ? label.substring(0, 30) : label,
-                s.samplesCount(), s.errorsCount(),
-                s.sampleTime().mean().toMillis(), s.sampleTime().perc90().toMillis(),
-                s.sampleTime().perc95().toMillis(), s.sampleTime().perc99().toMillis());
-    }
-
-    private static void check(List<String> violations, String metric, Duration actual, Duration limit) {
-        if (limit != null && actual.compareTo(limit) > 0) {
-            violations.add(metric + " " + actual.toMillis() + "ms > " + limit.toMillis() + "ms");
-        }
+        String table = SlaCheck.table(metricsByLabel(), metrics());
+        return table + "duration=" + stats.duration().toSeconds() + "s"
+                + (reportDir == null ? "" : "\nreport: " + reportDir.toAbsolutePath()) + "\n";
     }
 }

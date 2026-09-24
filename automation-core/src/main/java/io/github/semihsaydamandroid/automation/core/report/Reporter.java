@@ -20,27 +20,53 @@ public final class Reporter {
     private Reporter() {
     }
 
+    /** True when an Allure test case is running (allure-junit5 or AllureKarate is active). */
+    public static boolean reporting() {
+        return Allure.getLifecycle().getCurrentTestCase().isPresent();
+    }
+
     public static void step(String name) {
         LOG.info("STEP {}", name);
-        Allure.step(name);
+        if (reporting()) {
+            Allure.step(name);
+        }
     }
 
     public static void step(String name, Allure.ThrowableRunnableVoid action) {
         LOG.info("STEP {}", name);
-        Allure.step(name, action);
+        if (reporting()) {
+            Allure.step(name, action);
+            return;
+        }
+        try {
+            action.run();
+        } catch (Throwable t) {
+            sneakyThrow(t);
+        }
     }
 
     public static <T> T step(String name, Allure.ThrowableRunnable<T> action) {
         LOG.info("STEP {}", name);
-        return Allure.step(name, action);
+        if (reporting()) {
+            return Allure.step(name, action);
+        }
+        try {
+            return action.run();
+        } catch (Throwable t) {
+            throw sneakyThrow(t);
+        }
     }
 
     public static void parameter(String name, Object value) {
-        Allure.parameter(name, value);
+        if (reporting()) {
+            Allure.parameter(name, value);
+        }
     }
 
     public static void label(String name, String value) {
-        Allure.label(name, value);
+        if (reporting()) {
+            Allure.label(name, value);
+        }
     }
 
     public static void attachText(String name, String content) {
@@ -65,6 +91,13 @@ public final class Reporter {
 
     public static void attach(String name, String mimeType, String extension, byte[] content) {
         LOG.debug("Attaching {} ({} bytes, {})", name, content.length, mimeType);
-        Allure.addAttachment(name, mimeType, new ByteArrayInputStream(content), extension);
+        if (reporting()) {
+            Allure.addAttachment(name, mimeType, new ByteArrayInputStream(content), extension);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> RuntimeException sneakyThrow(Throwable t) throws E {
+        throw (E) t;
     }
 }

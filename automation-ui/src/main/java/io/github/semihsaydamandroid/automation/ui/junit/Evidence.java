@@ -2,6 +2,7 @@ package io.github.semihsaydamandroid.automation.ui.junit;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
@@ -10,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.github.semihsaydamandroid.automation.core.report.Reporter;
+import io.github.semihsaydamandroid.automation.core.spi.FailureAnalysis;
 import io.github.semihsaydamandroid.automation.core.spi.FailureAnalyzers;
 import io.github.semihsaydamandroid.automation.core.spi.FailureContext;
 import io.github.semihsaydamandroid.automation.ui.driver.DriverSession;
@@ -23,7 +25,8 @@ public final class Evidence {
     private Evidence() {
     }
 
-    public static void captureFailure(String testName, Throwable error, DriverSession session) {
+    /** Attaches screenshot, DOM and console log, then returns the failure analysis (if any). */
+    public static Optional<FailureAnalysis> captureFailure(String testName, Throwable error, DriverSession session) {
         WebDriver driver = session.driver();
         Map<String, String> artifacts = new LinkedHashMap<>();
         byte[] screenshot = null;
@@ -51,7 +54,7 @@ public final class Evidence {
             Reporter.attachText("Browser console", console);
         }
         artifacts.put("session", session.description());
-        FailureAnalyzers.analyzeAndReport(new FailureContext(testName, "ui", error,
+        return FailureAnalyzers.analyzeAndReport(new FailureContext(testName, "ui", error,
                 error == null ? null : error.getMessage(), artifacts, screenshot));
     }
 }

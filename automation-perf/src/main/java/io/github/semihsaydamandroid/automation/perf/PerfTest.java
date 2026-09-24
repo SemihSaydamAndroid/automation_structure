@@ -1,6 +1,7 @@
 package io.github.semihsaydamandroid.automation.perf;
 
 import static us.abstracta.jmeter.javadsl.JmeterDsl.htmlReporter;
+import static us.abstracta.jmeter.javadsl.JmeterDsl.influxDbListener;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.jtlWriter;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.testPlan;
 import static us.abstracta.jmeter.javadsl.JmeterDsl.threadGroup;
@@ -26,6 +27,7 @@ import us.abstracta.jmeter.javadsl.core.DslTestPlan;
 import us.abstracta.jmeter.javadsl.core.TestPlanStats;
 import us.abstracta.jmeter.javadsl.core.engines.DistributedJmeterEngine;
 import us.abstracta.jmeter.javadsl.core.engines.EmbeddedJmeterEngine;
+import us.abstracta.jmeter.javadsl.core.listeners.InfluxDbBackendListener;
 import us.abstracta.jmeter.javadsl.core.threadgroups.BaseThreadGroup.ThreadGroupChild;
 import us.abstracta.jmeter.javadsl.core.threadgroups.DslDefaultThreadGroup;
 
@@ -95,18 +97,12 @@ public final class PerfTest {
         guardLocalLoad();
         Path reportDir = Path.of(config.get("perf.report-dir", "target/jmeter"),
                 Names.toDnsLabel(name) + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-        ThreadGroupChild[] steps = children.toArray(ThreadGroupChild[]::new);
-        DslDefaultThreadGroup group = profile.iterationBased()
-                ? threadGroup(name, profile.threads(), profile.iterations(), steps)
-                : threadGroup(name).rampToAndHold(profile.threads(), profile.rampUp(), profile.hold()).children(steps);
-
-        List<DslTestPlan.TestPlanChild> planChildren = new ArrayList<>();
-        planChildren.add(group);
-        planChildren.add(jtlWriter(reportDir.resolve("jtl").toString()));
+        List<DslTestPlan.TestPlanChild> elements = new ArrayList<>(planChildren(profile));
+        elements.add(jtlWriter(reportDir.resolve("jtl").toString()));
         if (config.getBoolean("perf.report.html", true)) {
-            planChildren.add(htmlReporter(reportDir.resolve("html").toString()));
+            elements.add(htmlReporter(reportDir.resolve("html").toString()));
         }
-        DslTestPlan plan = testPlan(planChildren.toArray(DslTestPlan.TestPlanChild[]::new));
+        DslTestPlan plan = testPlan(elements.toArray(DslTestPlan.TestPlanChild[]::new));
 
         LOG.info("Running performance test '{}' with profile {} on {}", name, profile, engineDescription());
         TestPlanStats stats = execute(plan);
@@ -131,13 +127,50 @@ public final class PerfTest {
 
     /** Saves the generated plan as .jmx, e.g. to open it in the JMeter GUI. */
     public void saveAsJmx(Path file) {
-        ThreadGroupChild[] steps = children.toArray(ThreadGroupChild[]::new);
+        saveAsJmx(file, profile);
+    }
+
+    /**
+     * Saves the plan sized for {@code loadProfile}; used by distributed runs where every load
+     * generator receives its share of the total threads.
+     */
+    public void saveAsJmx(Path file, LoadProfile loadProfile) {
         try {
-            testPlan(threadGroup(name, profile.threads(), Math.max(profile.iterations(), 1), steps))
-                    .saveAsJmx(file.toString());
+            testPlan(planChildren(loadProfile).toArray(DslTestPlan.TestPlanChild[]::new)).saveAsJmx(file.toString());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public LoadProfile loadProfile() {
+        return profile;
+    }
+
+    public Sla slaObjectives() {
+        return sla;
+    }
+
+    /** Thread group sized by the profile plus the live metrics listener when configured. */
+    private List<DslTestPlan.TestPlanChild> planChildren(LoadProfile loadProfile) {
+        ThreadGroupChild[] steps = children.toArray(ThreadGroupChild[]::new);
+        DslDefaultThreadGroup group = loadProfile.iterationBased()
+                ? threadGroup(name, loadProfile.threads(), loadProfile.iterations(), steps)
+                : threadGroup(name).rampToAndHold(loadProfile.threads(), loadProfile.rampUp(), loadProfile.hold()).children(steps);
+        List<DslTestPlan.TestPlanChild> result = new ArrayList<>();
+        result.add(group);
+        config.find("perf.live.influxdb-url").filter(s -> !s.isBlank()).ifPresent(url -> {
+            InfluxDbBackendListener listener = influxDbListener(url)
+                    .application(name)
+                    .tag("runId", config.context().runId())
+                    .tag("profile", config.context().profile().id());
+            config.find("perf.live.influxdb-token").filter(s -> !s.isBlank()).ifPresent(listener::token);
+            result.add(listener);
+        });
+        return result;
     }
 
     private TestPlanStats execute(DslTestPlan plan) {

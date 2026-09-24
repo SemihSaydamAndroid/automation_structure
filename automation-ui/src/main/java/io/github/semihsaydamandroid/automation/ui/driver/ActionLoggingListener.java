@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Logs navigation and element interactions; values typed into password fields are masked. */
-final class ActionLoggingListener implements WebDriverListener {
+public final class ActionLoggingListener implements WebDriverListener {
 
     private static final Logger LOG = LoggerFactory.getLogger("automation.ui.actions");
 

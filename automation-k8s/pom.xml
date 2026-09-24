@@ -38,6 +38,12 @@
             <artifactId>automation-ui</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Optional: only needed for distributed JMeter load tests (DistributedLoadTest). -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>automation-perf</artifactId>
+            <optional>true</optional>
+        </dependency>
 
         <dependency>
             <groupId>io.fabric8</groupId>
