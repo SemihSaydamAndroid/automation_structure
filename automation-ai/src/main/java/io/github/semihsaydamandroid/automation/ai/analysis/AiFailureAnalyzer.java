@@ -26,7 +26,7 @@ public final class AiFailureAnalyzer implements FailureAnalyzer {
 
     private static final Logger LOG = LoggerFactory.getLogger(AiFailureAnalyzer.class);
 
-    record Verdict(FailureAnalysis.Category category, double confidence, String summary, String rootCause, String suggestedFix) {
+    record Verdict(String category, double confidence, String summary, String rootCause, String suggestedFix) {
     }
 
     @Override
@@ -45,8 +45,8 @@ public final class AiFailureAnalyzer implements FailureAnalyzer {
         }
         AiClient ai = client.get();
         try {
-            String hint = new RuleBasedFailureAnalyzer().analyze(context)
-                    .map(a -> a.category() + " (" + a.rootCause() + ")").orElse("none");
+            Optional<FailureAnalysis> rules = new RuleBasedFailureAnalyzer().analyze(context);
+            String hint = rules.map(a -> a.category() + " (" + a.rootCause() + ")").orElse("none");
             Map<String, String> values = new LinkedHashMap<>();
             values.put("testName", context.testName());
             values.put("layer", context.layer());
@@ -56,14 +56,51 @@ public final class AiFailureAnalyzer implements FailureAnalyzer {
             boolean withImage = context.screenshot() != null && AutomationConfig.get().getBoolean("ai.failure-analysis.screenshot", false);
             Verdict verdict = ai.json(Prompts.render("failure-analysis-system", Map.of()),
                     Prompts.render("failure-analysis", values), withImage ? context.screenshot() : null, Verdict.class);
-            return Optional.of(new FailureAnalysis(
-                    verdict.category() == null ? FailureAnalysis.Category.UNKNOWN : verdict.category(),
+            FailureAnalysis.Category category = category(verdict.category());
+            String summary = verdict.summary();
+            // Surface disagreement with a confident rule match instead of hiding it.
+            if (rules.isPresent() && rules.get().confidence() >= 0.8 && rules.get().category() != category) {
+                summary = summary + " (note: rule-based analysis suggests " + rules.get().category() + ")";
+            }
+            return Optional.of(new FailureAnalysis(category,
                     Math.max(0, Math.min(1, verdict.confidence())),
-                    verdict.summary(), verdict.rootCause(), verdict.suggestedFix(), "ai:" + ai.settings().describe()));
+                    summary, verdict.rootCause(), verdict.suggestedFix(), "ai:" + ai.settings().describe()));
         } catch (RuntimeException e) {
             LOG.warn("AI failure analysis unavailable ({}); falling back to rules", e.toString());
             return Optional.empty();
         }
+    }
+
+    /** Small models paraphrase ("Environment issue", "flaky test"); map by keyword. */
+    public static FailureAnalysis.Category category(String answer) {
+        if (answer == null) {
+            return FailureAnalysis.Category.UNKNOWN;
+        }
+        String value = answer.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z]+", "_");
+        for (FailureAnalysis.Category category : FailureAnalysis.Category.values()) {
+            if (value.equals(category.name())) {
+                return category;
+            }
+        }
+        if (value.contains("LOCATOR") || value.contains("SELECTOR") || value.contains("ELEMENT")) {
+            return FailureAnalysis.Category.LOCATOR_CHANGED;
+        }
+        if (value.contains("ENV") || value.contains("INFRA") || value.contains("NETWORK") || value.contains("UNAVAILABLE")) {
+            return FailureAnalysis.Category.ENVIRONMENT;
+        }
+        if (value.contains("FLAK") || value.contains("INTERMITTENT")) {
+            return FailureAnalysis.Category.FLAKY;
+        }
+        if (value.contains("DATA")) {
+            return FailureAnalysis.Category.TEST_DATA;
+        }
+        if (value.contains("PRODUCT") || value.contains("APPLICATION") || value.contains("REGRESSION")) {
+            return FailureAnalysis.Category.PRODUCT_BUG;
+        }
+        if (value.contains("TEST")) {
+            return FailureAnalysis.Category.TEST_BUG;
+        }
+        return FailureAnalysis.Category.UNKNOWN;
     }
 
     private static String artifacts(FailureContext context) {

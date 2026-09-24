@@ -22,11 +22,15 @@ public final class AiTestData {
     private AiTestData() {
     }
 
-    @SuppressWarnings("unchecked")
+    /** Wrapped in an object because JSON-constrained decoding favors objects over bare arrays. */
+    record Records(List<Map<String, Object>> records) {
+    }
+
     public static List<Map<String, Object>> generate(String description, int count) {
         AiClient ai = AiClient.shared().orElseThrow(() -> new IllegalStateException("AI test data needs ai.provider"));
-        return ai.json(Prompts.render("test-data-system", Map.of()),
+        Records result = ai.json(Prompts.render("test-data-system", Map.of()),
                 Prompts.render("test-data", Map.of("description", description, "count", String.valueOf(count))),
-                null, List.class);
+                null, Records.class);
+        return result.records() == null ? List.of() : result.records();
     }
 }

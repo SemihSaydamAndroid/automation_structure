@@ -1,2 +1,4 @@
-Generate {{count}} records: {{description}}
-Return a JSON array of {{count}} objects with consistent keys (camelCase).
+Generate exactly {{count}} records: {{description}}
+Use the same camelCase keys in every record.
+
+Return: {"records": [ ...exactly {{count}} objects... ]}

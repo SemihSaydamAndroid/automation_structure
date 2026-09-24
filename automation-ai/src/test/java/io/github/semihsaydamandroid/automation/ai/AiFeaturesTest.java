@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
 
 import io.github.semihsaydamandroid.automation.ai.analysis.AiFailureAnalyzer;
+import io.github.semihsaydamandroid.automation.ai.generation.AiTestData;
 import io.github.semihsaydamandroid.automation.ai.healing.AiLocatorHealer;
 import io.github.semihsaydamandroid.automation.ai.model.AiClient;
 import io.github.semihsaydamandroid.automation.ai.model.AiProvider;
@@ -31,7 +32,7 @@ class AiFeaturesTest {
     private void useFake() {
         AiSettings settings = new AiSettings(AiProvider.OLLAMA, "llama3.1:8b", "llama3.1:8b", "http://localhost:11434",
                 "", 0.0, 512, Duration.ofSeconds(5), true, 10_000);
-        AiClient.use(new AiClient(settings, model, model));
+        AiClient.use(new AiClient(settings, model, model, model));
     }
 
     @AfterEach
@@ -65,6 +66,19 @@ class AiFeaturesTest {
     }
 
     @Test
+    void disagreementWithConfidentRulesIsSurfaced() {
+        useFake();
+        model.answer("{\"category\":\"PRODUCT_BUG\",\"confidence\":0.8,\"summary\":\"Checkout broken\",\"rootCause\":\"x\",\"suggestedFix\":\"y\"}");
+        FailureContext context = new FailureContext("checkout", "api", null,
+                "java.net.ConnectException: Connection refused", Map.of(), null);
+
+        FailureAnalysis analysis = new AiFailureAnalyzer().analyze(context).orElseThrow();
+
+        assertThat(analysis.category()).isEqualTo(FailureAnalysis.Category.PRODUCT_BUG);
+        assertThat(analysis.summary()).endsWith("(note: rule-based analysis suggests ENVIRONMENT)");
+    }
+
+    @Test
     void modelOutagesFallBackToRules() {
         useFake();
         model.failure = new RuntimeException("connection refused: localhost:11434");
@@ -88,6 +102,27 @@ class AiFeaturesTest {
         assertThat(candidates).containsExactly(By.cssSelector("button[data-testid='pay']"));
         assertThat(model.requests).hasSize(2);
         assertThat(model.lastPrompt()).doesNotContain("<script>");
+    }
+
+    @Test
+    void testDataIsUnwrappedFromTheRecordsObject() {
+        useFake();
+        model.answer("{\"records\": [{\"firstName\": \"Ayşe\", \"city\": \"İzmir\"}, {\"firstName\": \"Mehmet\", \"city\": \"Ankara\"}]}");
+
+        List<Map<String, Object>> records = AiTestData.generate("customers", 2);
+
+        assertThat(records).hasSize(2);
+        assertThat(records.get(0)).containsEntry("city", "İzmir");
+        assertThat(model.lastPrompt()).contains("exactly 2 records");
+    }
+
+    @Test
+    void paraphrasedCategoriesAreMapped() {
+        assertThat(AiFailureAnalyzer.category("Environment issue")).isEqualTo(FailureAnalysis.Category.ENVIRONMENT);
+        assertThat(AiFailureAnalyzer.category("locator changed")).isEqualTo(FailureAnalysis.Category.LOCATOR_CHANGED);
+        assertThat(AiFailureAnalyzer.category("Flaky test")).isEqualTo(FailureAnalysis.Category.FLAKY);
+        assertThat(AiFailureAnalyzer.category("TEST_BUG")).isEqualTo(FailureAnalysis.Category.TEST_BUG);
+        assertThat(AiFailureAnalyzer.category(null)).isEqualTo(FailureAnalysis.Category.UNKNOWN);
     }
 
     @Test

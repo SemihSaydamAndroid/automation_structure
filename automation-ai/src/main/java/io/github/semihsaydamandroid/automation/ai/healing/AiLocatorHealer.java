@@ -50,7 +50,13 @@ public final class AiLocatorHealer implements LocatorHealer {
                     "brokenLocator", request.locator().by().toString(),
                     "url", request.url(),
                     "dom", ai.prepare(DomCompactor.compact(request.pageSource()))));
-            Answer answer = ai.json(Prompts.render("locator-healing-system", Map.of()), prompt, null, Answer.class);
+            Answer answer;
+            try {
+                answer = ai.json(Prompts.render("locator-healing-system", Map.of()), prompt, null, Answer.class);
+            } catch (RuntimeException e) {
+                LOG.warn("AI healer got no usable answer for '{}': {}", request.locator().description(), e.getMessage());
+                return List.<By>of();
+            }
             if (answer.candidates() == null) {
                 return List.<By>of();
             }

@@ -190,6 +190,8 @@ Kapalı gelir (`ai.provider=none`). Açılana kadar hiçbir veri dışarı gönd
 | Test verisi | `AiTestData.generate("geçerli IBAN'lı 5 bireysel müşteri", 5)`; Karate'den de çağrılabilir |
 | Taslak üretimi | OpenAPI'den Karate feature, canlı sayfadan Page Object (`AiAuthoringMain`). İnsan incelemesi için taslak olarak yazılır. |
 
+- **Küçük yerel modeller için:** Ollama/vLLM'de yapılandırılmış cevaplar JSON moduyla (gramer kısıtlı) istenir. Model kategoriyi farklı kelimelerle söylese de ("Environment issue") doğru kategoriye eşlenir. AI, yüksek güvenli kural motoruyla çelişirse iki görüş birlikte raporlanır.
+- **Model boyutu:** `llama3.2:1b` akışları bozmadan çalışır ama triage ve healing için zayıf kalır. En az 7-8B'lik bir model (`llama3.1:8b`, `qwen2.5:7b`) ya da Claude önerilir.
 - **KVKK:** `ai.redact=true` (varsayılan) açıkken token, şifre, e-posta, TCKN, IBAN, kart ve telefon bilgileri maskelenir.
 - **Prompt'lar:** `automation/ai/prompts/*.md` altında durur. Client projede aynı yola bir dosya koyarak override edebilirsin.
 
@@ -215,9 +217,13 @@ mvn -f examples/sample-client/pom.xml test
 
 ## Doğrulama durumu
 
-- **Otomatik testler:** Framework'te 56 test var (`mvn install -Pe2e`): 49'u tarayıcı gerektirmeyen testler (Karate mock server ve yerel HTTP sunucusuna karşı koşanlar dahil), 7'si gerçek Chrome testleri. K8s modülünün testleri fabric8 mock API server'ı ile koşar.
+- **Otomatik testler:** Framework'te 59 test var (`mvn install -Pe2e`): 52'si tarayıcı gerektirmeyen testler (Karate mock server ve yerel HTTP sunucusuna karşı koşanlar dahil), 7'si gerçek Chrome testleri. Buna ek olarak, gerçek LLM gerektiren 3 test `ai-live` etiketiyle varsayılan build'in dışında tutulur. K8s modülünün testleri fabric8 mock API server'ı ile koşar.
 - **Gerçek Chrome (Selenium Grid container'ı):** geç render, overlay, self-healing ve hata kanıtı akışı doğrulandı. İngilizce ve Türkçe Cucumber senaryoları da aynı ortamda geçti.
 - **Gerçek servisler:** örnek proje the-internet ve jsonplaceholder'a karşı koşturuldu.
+- **AI (gerçek açık kaynak model):** Docker'da Ollama ile koşturuldu (`mvn test -pl automation-ai -Dautomation.excludedGroups=k8s -Dai.provider=ollama -Dai.model=llama3.1:8b`). `llama3.1:8b` CPU'da, 3 çağrı yaklaşık 2 dakikada tamamlandı:
+  - **Triage:** 503 hatası doğru kategoriye (`ENVIRONMENT`, %90) düştü.
+  - **Healing:** değişen butonun ilk adayı doğru (`button[data-testid='sign-in-button']`).
+  - **Test verisi:** 3 tutarlı Türkçe müşteri kaydı üretildi.
 - **Dağıtık JMeter worker'ı:** script ve imaj Docker'da 3 worker ile uçtan uca koşturuldu (senkron start, JTL toplama ve birleştirme). K8s API tarafı (Job/pod oluşturma, port-forward, exec) gerçek bir cluster'da henüz koşturulmadı. İlk kurulumda `k8s.perf.workers=2` ile başlanması önerilir.
 
 ## Yol haritası

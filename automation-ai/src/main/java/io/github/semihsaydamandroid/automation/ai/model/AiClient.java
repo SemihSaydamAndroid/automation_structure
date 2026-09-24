@@ -43,11 +43,18 @@ public final class AiClient {
 
     private final AiSettings settings;
     private final ChatModel textModel;
+    private final ChatModel jsonModel;
     private final ChatModel visionModel;
 
-    public AiClient(AiSettings settings, ChatModel textModel, ChatModel visionModel) {
+    /**
+     * @param textModel   free-form answers (generated features, page objects)
+     * @param jsonModel   structured answers, JSON-constrained where supported
+     * @param visionModel structured answers about screenshots
+     */
+    public AiClient(AiSettings settings, ChatModel textModel, ChatModel jsonModel, ChatModel visionModel) {
         this.settings = settings;
         this.textModel = textModel;
+        this.jsonModel = jsonModel;
         this.visionModel = visionModel;
     }
 
@@ -60,8 +67,9 @@ public final class AiClient {
                     AiSettings settings = AiSettings.from(AutomationConfig.get());
                     shared = settings.enabled()
                             ? Optional.of(new AiClient(settings,
-                                    AiModels.create(settings, settings.model()),
-                                    AiModels.create(settings, settings.visionModel())))
+                                    AiModels.create(settings, settings.model(), false),
+                                    AiModels.create(settings, settings.model(), true),
+                                    AiModels.create(settings, settings.visionModel(), true)))
                             : Optional.empty();
                     shared.ifPresent(c -> LOG.info("AI features enabled with {}", settings.describe()));
                 }
@@ -84,13 +92,9 @@ public final class AiClient {
         return chat(textModel, system, user, null);
     }
 
-    public String completeWithImage(String system, String user, byte[] png) {
-        return chat(visionModel, system, user, png);
-    }
-
     /** Asks for JSON and maps it; retries once with a stricter reminder when the answer is not valid JSON. */
     public <T> T json(String system, String user, byte[] png, Class<T> type) {
-        ChatModel model = png == null ? textModel : visionModel;
+        ChatModel model = png == null ? jsonModel : visionModel;
         String answer = chat(model, system, user, png);
         try {
             return JSON.readValue(extractJson(answer), type);
