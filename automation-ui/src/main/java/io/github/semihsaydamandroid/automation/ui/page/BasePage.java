@@ -61,7 +61,8 @@ public abstract class BasePage {
         return driver.getCurrentUrl();
     }
 
-    static String resolveUrl(String path) {
+    /** Absolute URLs are returned as is; relative paths are resolved against {@code ui.base-url}. */
+    public static String resolveUrl(String path) {
         if (path.matches("^[a-zA-Z][a-zA-Z0-9+.-]*:.*")) {
             return path;
         }

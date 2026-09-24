@@ -1,0 +1,49 @@
+# Guard rails: a developer's local run (or a forgotten loop) cannot eat the cluster.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: automation-quota
+  namespace: qa-local
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: 32Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "40"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: automation-quota
+  namespace: qa-ci
+spec:
+  hard:
+    requests.cpu: "120"
+    requests.memory: 240Gi
+    limits.cpu: "200"
+    limits.memory: 400Gi
+    pods: "250"
+---
+# Defaults for pods that do not declare resources.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: automation-defaults
+  namespace: qa-local
+spec:
+  limits:
+    - type: Container
+      default: { cpu: "1", memory: 2Gi }
+      defaultRequest: { cpu: 250m, memory: 512Mi }
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: automation-defaults
+  namespace: qa-ci
+spec:
+  limits:
+    - type: Container
+      default: { cpu: "1", memory: 2Gi }
+      defaultRequest: { cpu: 250m, memory: 512Mi }

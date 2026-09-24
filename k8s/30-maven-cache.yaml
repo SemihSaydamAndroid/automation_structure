@@ -1,0 +1,24 @@
+# ~/.m2/repository cache for remote runner pods (k8s.runner.m2-pvc=qa-m2-cache).
+# ReadWriteMany lets parallel runs share it; with ReadWriteOnce storage run one runner at a time
+# or bake dependencies into a runner image instead (see examples/sample-client/Dockerfile).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qa-m2-cache
+  namespace: qa-local
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qa-m2-cache
+  namespace: qa-ci
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 20Gi

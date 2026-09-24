@@ -1,0 +1,49 @@
+# Nightly regression without any CI server: the cluster schedules the run itself.
+# The image is the client test project with dependencies baked in (examples/sample-client/Dockerfile).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-regression
+  namespace: qa-ci
+spec:
+  schedule: "0 2 * * 1-5"          # 02:00 UTC on weekdays
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: automation-structure
+            app.kubernetes.io/component: runner
+            automation/profile: ci
+        spec:
+          serviceAccountName: qa-runner
+          restartPolicy: Never
+          containers:
+            - name: tests
+              image: registry.example.com/qa/sample-client-tests:latest
+              args: ["mvn", "-B", "-o", "test", "-Pui", "-Denv=staging", "-s", "/etc/automation/secrets/settings.xml"]
+              env:
+                - { name: AUTOMATION_PROFILE, value: ci }
+                - { name: AUTOMATION_ENV, value: staging }
+                - { name: AUTOMATION_UI_EXECUTION, value: kubernetes }
+                - name: AUTOMATION_RUN_ID
+                  valueFrom: { fieldRef: { fieldPath: metadata.name } }
+                - name: POD_NAME
+                  valueFrom: { fieldRef: { fieldPath: metadata.name } }
+                - name: POD_UID
+                  valueFrom: { fieldRef: { fieldPath: metadata.uid } }
+                - name: POD_NAMESPACE
+                  valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+              resources:
+                requests: { cpu: "1", memory: 2Gi }
+                limits: { cpu: "2", memory: 4Gi }
+              volumeMounts:
+                - { name: secrets, mountPath: /etc/automation/secrets, readOnly: true }
+          volumes:
+            - name: secrets
+              secret: { secretName: qa-secrets }

@@ -20,14 +20,16 @@ public final class K8sClients {
         return new KubernetesClientBuilder().withConfig(Config.autoConfigure(context)).build();
     }
 
-    /** Process-wide client, closed on JVM shutdown. */
+    /**
+     * Process-wide client. Deliberately not closed by a shutdown hook: the driver cleanup hook
+     * still needs it to delete browser pods while the JVM exits.
+     */
     public static KubernetesClient shared(K8sSettings settings) {
         KubernetesClient client = shared;
         if (client == null) {
             synchronized (K8sClients.class) {
                 if (shared == null) {
                     shared = create(settings);
-                    Runtime.getRuntime().addShutdownHook(new Thread(() -> shared.close(), "automation-k8s-client-close"));
                 }
                 client = shared;
             }

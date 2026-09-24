@@ -1,0 +1,74 @@
+# Permissions the framework needs: browser pods, runner pods, distributed load Jobs + ConfigMaps.
+# Bound to (a) the qa-runner service account used by runner pods and CI agents in the cluster,
+# (b) developers (qa-local) and the CI identity (qa-ci) connecting with their own kubeconfig.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: automation-executor
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/portforward"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qa-runner
+  namespace: qa-local
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: qa-runner
+  namespace: qa-ci
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: automation-executor
+  namespace: qa-local
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: automation-executor
+subjects:
+  - kind: ServiceAccount
+    name: qa-runner
+    namespace: qa-local
+  # Developers (group name comes from your identity provider / OIDC)
+  - kind: Group
+    name: qa-developers
+    apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: automation-executor
+  namespace: qa-ci
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: automation-executor
+subjects:
+  - kind: ServiceAccount
+    name: qa-runner
+    namespace: qa-ci
+  # Jenkins / GitHub Actions / GitLab identity used by pipelines
+  - kind: Group
+    name: qa-pipelines
+    apiGroup: rbac.authorization.k8s.io

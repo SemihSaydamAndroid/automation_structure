@@ -1,0 +1,5 @@
+# Object repository: business names used in feature files
+Kullanıcı adı = id:username
+Şifre         = id:password
+Giriş         = css:button[type=submit]
+Bildirim      = id:flash

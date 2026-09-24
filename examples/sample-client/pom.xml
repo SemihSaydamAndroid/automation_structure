@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- A client project: consumes the platform as a dependency, not as a parent. -->
+    <groupId>com.example.qa</groupId>
+    <artifactId>sample-client</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <properties>
+        <automation.version>0.1.0-SNAPSHOT</automation.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Tags excluded by default: ui (browser), perf, k8s (cluster needed) -->
+        <excluded.tags>ui,perf,k8s</excluded.tags>
+    </properties>
+
+    <repositories>
+        <!-- Where the platform is published; needs a GitHub token with read:packages in ~/.m2/settings.xml (server id "github"). -->
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/SemihSaydamAndroid/automation_structure</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.semihsaydamandroid</groupId>
+                <artifactId>automation-bom</artifactId>
+                <version>${automation.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Pick only what the project needs; versions come from the BOM. -->
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-ui</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-perf</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-bdd</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-k8s</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.semihsaydamandroid</groupId>
+            <artifactId>automation-ai</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+                <configuration>
+                    <excludedGroups>${excluded.tags}</excludedGroups>
+                    <argLine>-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
+                    <systemPropertyVariables>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- mvn test -Pui : include browser tests (local Chrome, grid or Kubernetes per ui.execution) -->
+        <profile>
+            <id>ui</id>
+            <properties>
+                <excluded.tags>perf,k8s</excluded.tags>
+            </properties>
+        </profile>
+
+        <!--
+            Run this project inside Kubernetes from your laptop:
+              mvn -Pk8s-remote exec:java                                   (k8s.runner.command, default "mvn -B test")
+              mvn -Pk8s-remote exec:java -Dexec.args="run mvn -B test -Pui -Dgroups=smoke"
+              mvn -Pk8s-remote exec:java -Dexec.args="cleanup"            (delete your leftover pods)
+        -->
+        <profile>
+            <id>k8s-remote</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.4</version>
+                        <configuration>
+                            <mainClass>io.github.semihsaydamandroid.automation.k8s.runner.RemoteRunnerMain</mainClass>
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <argument>run</argument>
+                            </arguments>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

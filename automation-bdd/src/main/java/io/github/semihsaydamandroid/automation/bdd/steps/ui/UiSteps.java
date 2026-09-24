@@ -1,6 +1,5 @@
 package io.github.semihsaydamandroid.automation.bdd.steps.ui;
 
-import java.time.Duration;
 import java.util.Map;
 
 import org.openqa.selenium.By;
@@ -19,11 +18,11 @@ import io.github.semihsaydamandroid.automation.bdd.support.ByVisibleName;
 import io.github.semihsaydamandroid.automation.bdd.support.ElementRegistry;
 import io.github.semihsaydamandroid.automation.bdd.support.FailureCapture;
 import io.github.semihsaydamandroid.automation.bdd.support.ScenarioContext;
-import io.github.semihsaydamandroid.automation.core.config.AutomationConfig;
 import io.github.semihsaydamandroid.automation.ui.driver.DriverManager;
 import io.github.semihsaydamandroid.automation.ui.element.Locator;
 import io.github.semihsaydamandroid.automation.ui.element.UiElement;
 import io.github.semihsaydamandroid.automation.ui.junit.Evidence;
+import io.github.semihsaydamandroid.automation.ui.page.BasePage;
 import io.github.semihsaydamandroid.automation.ui.wait.Waits;
 
 /**
@@ -48,12 +47,7 @@ public class UiSteps {
     @Given("{string} sayfasını açarım")
     @Given("{string} adresine giderim")
     public void open(String path) {
-        String url = context.resolve(path);
-        if (!url.matches("^[a-zA-Z][a-zA-Z0-9+.-]*:.*")) {
-            String base = AutomationConfig.get().get("ui.base-url");
-            url = base.replaceAll("/+$", "") + "/" + url.replaceAll("^/+", "");
-        }
-        driver().get(url);
+        driver().get(BasePage.resolveUrl(context.resolve(path)));
         waits().forPageLoad();
     }
 
@@ -232,9 +226,5 @@ public class UiSteps {
 
     protected Waits waits() {
         return Waits.of(driver());
-    }
-
-    protected Duration timeout() {
-        return waits().timeout();
     }
 }

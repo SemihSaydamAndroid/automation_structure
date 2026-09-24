@@ -71,7 +71,7 @@ public final class RemoteRunnerMain {
                 K8sSettings settings = K8sSettings.from(config);
                 try (KubernetesClient client = K8sClients.create(settings)) {
                     int deleted = new Janitor(client).cleanup(settings.namespace(), config.context().owner());
-                    System.out.println("Deleted " + deleted + " pod(s) of owner '" + config.context().owner()
+                    System.out.println("Deleted " + deleted + " resource(s) of owner '" + config.context().owner()
                             + "' in namespace " + settings.namespace());
                     return 0;
                 }

@@ -70,7 +70,7 @@ public final class DistributedLoadTest {
     private final Path jmx;
     private final Map<String, String> properties = new LinkedHashMap<>();
     private final Map<String, Path> dataFiles = new LinkedHashMap<>();
-    private AutomationConfig config = AutomationConfig.get();
+    private final AutomationConfig config = AutomationConfig.get();
     private Integer workers;
     private Integer totalThreads;
     private Sla sla;
@@ -124,11 +124,6 @@ public final class DistributedLoadTest {
 
     public DistributedLoadTest sla(Sla objectives) {
         this.sla = objectives;
-        return this;
-    }
-
-    DistributedLoadTest config(AutomationConfig custom) {
-        this.config = custom;
         return this;
     }
 

@@ -18,7 +18,7 @@ class JanitorTest {
     KubernetesClient client;
 
     @Test
-    void deletesOnlyManagedPodsOfTheOwner() {
+    void deletesOnlyManagedResourcesOfTheOwner() {
         create("mine-1", Map.of(ResourceLabels.MANAGED_BY, ResourceLabels.MANAGED_BY_VALUE, ResourceLabels.OWNER, "semih"));
         create("mine-2", Map.of(ResourceLabels.MANAGED_BY, ResourceLabels.MANAGED_BY_VALUE, ResourceLabels.OWNER, "semih"));
         create("colleague", Map.of(ResourceLabels.MANAGED_BY, ResourceLabels.MANAGED_BY_VALUE, ResourceLabels.OWNER, "ayse"));

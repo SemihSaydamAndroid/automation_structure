@@ -1,0 +1,63 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Unit tests
+        run: mvn -B -ntp install
+      - name: Browser tests (headless Chrome on the runner)
+        run: mvn -B -ntp verify -Pe2e -Dui.execution=local -Dui.headless=true
+      - name: Sample client compiles against the published API
+        run: mvn -B -ntp -f examples/sample-client/pom.xml test-compile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/target/surefire-reports
+            **/target/allure-results
+            **/target/karate-reports*
+          if-no-files-found: ignore
+
+  publish:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: github
+      - name: Version from tag (v1.2.3 -> 1.2.3), SNAPSHOT otherwise
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "REVISION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "REVISION=0.1.0-SNAPSHOT" >> "$GITHUB_ENV"
+          fi
+      - name: Deploy to GitHub Packages
+        run: mvn -B -ntp deploy -DskipTests -Drevision="$REVISION"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

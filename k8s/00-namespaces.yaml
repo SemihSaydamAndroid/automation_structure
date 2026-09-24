@@ -1,0 +1,17 @@
+# Separate namespaces per execution profile: developer runs never compete with pipeline runs,
+# and each can get its own quota, permissions and cost reporting.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qa-local
+  labels:
+    app.kubernetes.io/part-of: automation
+    automation/profile: local
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qa-ci
+  labels:
+    app.kubernetes.io/part-of: automation
+    automation/profile: ci
