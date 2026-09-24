@@ -64,6 +64,18 @@ public final class HeuristicLocatorHealer implements LocatorHealer {
         return new ArrayList<>(result);
     }
 
+    /**
+     * Candidates for an element known only by a human name ("Sign in", "Kullanıcı adı", "login"):
+     * test ids, ids and names first, then accessible names, placeholders, labels and visible text.
+     */
+    public static List<By> candidatesForName(String name) {
+        List<By> result = new ArrayList<>();
+        result.add(By.id(name));
+        result.addAll(new HeuristicLocatorHealer().candidates(
+                new HealingRequest(Locator.id(name, name), "", "", null)));
+        return result;
+    }
+
     static Optional<String> identifier(Locator locator) {
         String text = locator.by().toString();
         Matcher simple = SIMPLE_BY.matcher(text);

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Login</title>
+<style>
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); }
+</style>
+</head>
+<body>
+  <div id="overlay"></div>
+  <form id="form" style="display:none" onsubmit="event.preventDefault(); login();">
+    <input data-testid="username" name="username" placeholder="Username">
+    <input data-testid="password" name="password" type="password" placeholder="Password">
+    <!-- The id changed from "login-btn" to "submit": tests still use the old id to exercise healing -->
+    <button id="submit" type="submit">Sign in</button>
+  </form>
+  <p id="greeting"></p>
+  <script>
+    // Simulate a slow SPA: the form renders late and an overlay blocks clicks for a while.
+    setTimeout(function () { document.getElementById('form').style.display = 'block'; }, 600);
+    setTimeout(function () { document.getElementById('overlay').remove(); }, 1200);
+    function login() {
+      var user = document.querySelector('[data-testid=username]').value;
+      setTimeout(function () { document.getElementById('greeting').textContent = 'Welcome, ' + user; }, 500);
+    }
+  </script>
+</body>
+</html>

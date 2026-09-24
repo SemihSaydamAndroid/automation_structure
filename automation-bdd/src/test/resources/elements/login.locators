@@ -1,0 +1,5 @@
+# Object repository used by the Turkish feature: business name = strategy:value
+Kullanıcı adı = testId:username
+Şifre         = testId:password
+Giriş         = id:submit
+Karşılama     = id:greeting

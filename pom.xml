@@ -36,6 +36,7 @@
         <module>automation-api</module>
         <module>automation-perf</module>
         <module>automation-ai</module>
+        <module>automation-bdd</module>
     </modules>
 
     <properties>
@@ -52,6 +53,7 @@
         <jmeter-java-dsl.version>2.2.1</jmeter-java-dsl.version>
         <fabric8.version>7.9.0</fabric8.version>
         <langchain4j.version>1.20.0</langchain4j.version>
+        <cucumber.version>7.34.9</cucumber.version>
 
         <!-- Karate 1.5.x is built against JUnit 5; keep the platform on the 5.x line. -->
         <junit.version>5.14.4</junit.version>
@@ -66,7 +68,7 @@
 
         <!-- Plugins -->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
         <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
@@ -110,6 +112,11 @@
                 <artifactId>automation-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>automation-bdd</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- BOMs -->
             <dependency>
@@ -137,6 +144,13 @@
                 <groupId>io.fabric8</groupId>
                 <artifactId>kubernetes-client-bom</artifactId>
                 <version>${fabric8.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-bom</artifactId>
+                <version>${cucumber.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -231,6 +245,8 @@
                     <configuration>
                         <!-- Browser / cluster dependent tests run only in the e2e profile. -->
                         <excludedGroups>${automation.excludedGroups}</excludedGroups>
+                        <!-- Turkish characters and Cucumber's symbols in console output. -->
+                        <argLine>-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
                         <systemPropertyVariables>
                             <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
                         </systemPropertyVariables>
