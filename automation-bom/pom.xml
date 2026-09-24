@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.semihsaydamandroid</groupId>
+        <artifactId>automation-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>automation-bom</artifactId>
+    <packaging>pom</packaging>
+    <name>Automation :: BOM</name>
+    <description>
+        Platform BOM for client projects. Importing it aligns every automation module and the
+        underlying tool versions (Selenium, Karate, JMeter DSL, JUnit, Allure, fabric8, LangChain4j)
+        that were tested together.
+    </description>
+    <!--
+        Intentionally empty: the dependencyManagement inherited from automation-parent
+        (internal modules + third-party versions) is exactly what clients import.
+    -->
+</project>
